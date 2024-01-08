@@ -35,6 +35,9 @@
             console.log(`Looking at note ${noteHandle.uuid}...`);
             try {
               noteContent = await app.getNoteContent(noteHandle);
+              if (noteContent.includes("# Hidden tasks"))
+                continue;
+              noteContent = noteContent.slice(0, noteContent.indexOf('# Completed tasks<!-- {"omit":true} -->'));
               if (noteContent.trim() === "" || !noteContent.match(/[^\s\\]/mg)) {
                 console.log(`Found empty note: ${count}`);
                 emptyNoteLinks.push(`    * [${noteHandle.name || "[Untitled note]"}](https://www.amplenote.com/notes/${noteHandle.uuid})`);
