@@ -86,7 +86,7 @@
           let notes = await app.filterNotes({ tag: tagName });
           const self = this;
           let noteUUID = await app.createNote("Query results");
-          let result = this._generateMDList(notes.map((obj) => self._createMDLinkFromNoteHandle(obj)));
+          let result = "- Results\n" + this._generateMDList(notes.map((obj) => self._createMDLinkFromNoteHandle(obj)), 1);
           await app.insertContent(
             { uuid: noteUUID },
             result
@@ -94,6 +94,23 @@
           await app.context.replaceSelection(result);
         } catch (error) {
           app.alert(String(error));
+        }
+      },
+      "Reference": async function(app) {
+        try {
+          let note = await app.prompt(
+            "Choose a note you want to get all the references for",
+            { inputs: [{ label: "Note reference", type: "note" }] }
+          );
+          if (note) {
+            let references = await app.getNoteBacklinks(note);
+            const self = this;
+            let result = "- Results\n" + this._generateMDList(references.map((obj) => self._createMDLinkFromNoteHandle(obj)), 1);
+            await app.context.replaceSelection(result);
+          }
+        } catch (err) {
+          console.log(err);
+          await app.alert(err);
         }
       }
     },
@@ -115,8 +132,8 @@
     _createMDLinkFromNoteHandle(noteHandle) {
       return `[${noteHandle.name}](https://www.amplenote.com/notes/${noteHandle.uuid})`;
     },
-    _generateMDList(input) {
-      return input.map((item) => `- ${item}`).join("\n");
+    _generateMDList(input, indent = 0) {
+      return input.map((item) => "  ".repeat(indent) + `- ${item}`).join("\n");
     },
     _getDictFromTable(input) {
       let result = {};
