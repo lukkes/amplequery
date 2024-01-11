@@ -112,7 +112,67 @@
           console.log(err);
           await app.alert(err);
         }
+      },
+      "Tag Reference": async function(app) {
+        try {
+          let tag = await app.prompt(
+            "Enter the name of the tag you want to find all tag references for",
+            { inputs: [{ label: "Tag reference", type: "text", placeholder: "Tag name" }] }
+          );
+          if (!tag)
+            return false;
+          tag = tag.trim();
+          console.log("Fetching all notes with chosen tag...");
+          let tagNotes = await app.filterNotes({ tag });
+          if (!tagNotes)
+            return false;
+          let result = [];
+          for (let note of tagNotes) {
+            console.log(`Fetching all tasks that reference ${note.name}...`);
+            let refs = await app.getNoteBacklinks(note);
+            for (let ref of refs) {
+              let refTasks = await app.getNoteTasks(ref);
+              let taggedTasks = await this._filterTasksByInlineTag(app, refTasks, note);
+              result = result.concat(await Promise.all(taggedTasks.map(async (task) => {
+                let note2 = await app.findNote({ uuid: task.noteUUID });
+                return {
+                  note: note2,
+                  task
+                };
+              })));
+            }
+          }
+          console.log("Building results...");
+          result = `- Results
+` + this._generateMDList(
+            await Promise.all(result.map(async (item) => {
+              return `Source note: ${this._createMDLinkFromNoteHandle(item.note)}
+\\
+${item.task.content}`;
+            })),
+            1,
+            "- []"
+          );
+          await app.context.replaceSelection(result);
+          console.log("Success!");
+        } catch (err) {
+          console.log(err);
+          await app.alert(err);
+        }
       }
+    },
+    async _filterTasksByInlineTag(app, taskList, inlineTag) {
+      let result = [];
+      for (let task of taskList) {
+        console.log(task);
+        let content = task.content;
+        console.log(content);
+        console.log(await app.getNoteURL(inlineTag));
+        if (content.match(new RegExp(`\\[.*\\]\\(${await app.getNoteURL(inlineTag)}\\)`))) {
+          result.push(task);
+        }
+      }
+      return result;
     },
     async _getAllAttributesFromNoteHandles(app, notes) {
       let attributes = {};
@@ -132,8 +192,8 @@
     _createMDLinkFromNoteHandle(noteHandle) {
       return `[${noteHandle.name}](https://www.amplenote.com/notes/${noteHandle.uuid})`;
     },
-    _generateMDList(input, indent = 0) {
-      return input.map((item) => "  ".repeat(indent) + `- ${item}`).join("\n");
+    _generateMDList(input, indent = 0, type = "-") {
+      return input.map((item) => "  ".repeat(indent) + `${type} ${item}`).join("\n");
     },
     _getDictFromTable(input) {
       let result = {};
