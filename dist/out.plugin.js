@@ -61,6 +61,39 @@
           await app.alert(err);
         }
       },
+      "Images": async function(app) {
+        console.log("Starting amplequery: notes with images...");
+        const result = await app.prompt(
+          "Looking for notes with images. Should I filter to a certain tag only?",
+          {
+            inputs: [
+              {
+                "type": "tags"
+              }
+            ]
+          }
+        );
+        app.alert("Please wait. For large notebooks, this operation might take a few minutes and may even make the interface unresponsive.");
+        let count = 0;
+        let noteList = [];
+        for await (const noteHandle of app.filterNotes({ tag: result })) {
+          count += 1;
+          let noteContent;
+          console.log(`Looking at note ${noteHandle.uuid}...`);
+          try {
+            noteContent = await app.getNoteContent(noteHandle);
+            if (noteContent.match(/!\[.*\]\(.+\)/)) {
+              console.log(`Found note with images`);
+              noteList.push(`* [${noteHandle.name || "[Untitled note]"}](https://www.amplenote.com/notes/${noteHandle.uuid})`);
+            }
+          } catch (err) {
+            console.log("Caught an error:", err);
+          }
+        }
+        console.log("Writing list...");
+        await app.context.replaceSelection(noteList.join("\n"));
+        console.log("Success");
+      },
       "Field": async function(app) {
         try {
           let notes = await app.filterNotes({ tag: app.settings["Tag to search in"] });
@@ -121,7 +154,9 @@
           );
           if (!tag)
             return false;
+          console.log(tag);
           tag = tag.trim();
+          console.log(tag);
           console.log("Fetching all notes with chosen tag...");
           let tagNotes = await app.filterNotes({ tag });
           if (!tagNotes)
